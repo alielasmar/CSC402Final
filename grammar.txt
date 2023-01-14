@@ -1,0 +1,74 @@
+basic_program :  (label_instr)*
+
+labeled_instruction: label_def prog_stmt
+                    | prog_stmt
+label_def:  label \:
+prog_stmt:   DATA literal(,literal)?
+           | DEF FN varname(expr (,expr)?) = expr
+           | END
+           | FOR varname = start TO end[STEP increment]
+           | GOSUB label
+           | GOTO label
+           | IF expr THEN label
+           | INPUT (prompt;)? (var(,var)?)
+           | LET var = expr
+           | NEXT (var)?
+           | ON expr (GOSUB|GOTO) label (,label)?
+           | PRINT  (expr (;|,)?(,expr(;|,)?)?)*
+           | RANDOMIZE
+           | READ (var (,var)?
+           | REM  text
+           | RESTORE (label)?
+           | RETURN  
+           | STOP
+expr: expr_eql
+expr_lgc: expr_eql ((OR|AND|NOT) expr_eql)*
+expr_eql: expr_opmed ((LEQ|EQ|NEQ|LSS|GRT|LEQ|GREQ) expr_opmed)*
+expr_opmed: expr_ophigh ((ADD|SUB) expr_ophigh)*
+expr_ophigh: primary ((MUL|DIV|POW) primary)*
+
+
+primary:     literal
+           | varname
+           | var
+           | expr
+           | FN\( actual_args?\)
+           | builtin\( actual_args?\)
+           | LPAREN (/expr/)
+           | UMIN primary
+           | UPLUS primary
+
+builtin:   ABS
+        |  ASC
+        |  ATN
+        |  CHR$
+        |  COS
+        |  EXP
+        |  INT
+        |  LEFT$
+        |  LEN
+        |  LOG
+        |  MID$
+        |  RIGHT$
+        |  RND
+        |  SGN
+        |  SIN
+        |  SPC
+        |  SQR
+        |  STR
+        |  TAB
+        |  TAN
+        |  VAL
+
+formal_args: literal (,literal)*
+actual_args: exp (,exp)*
+
+
+label: id
+literal: <any valid floating-point number>
+        |<any valid string>
+prompt: <user input string>
+varname: <any string>
+text:  <any string>
+id: <any valid name>
+var:  <any string array>
