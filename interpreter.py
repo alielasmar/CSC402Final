@@ -1,7 +1,58 @@
 from lexer import Lexer
 from parser_1 import Parser
 import ast
+from typing import Union
+from typing import Dict
+from typing import Any
+from typing import Iterable
 
+class FunctionNotFoundError(Exception):
+    pass
+
+class Error(Exception):
+    def __init__(self, message):
+        self.message = message
+
+class LexerError(Exception):
+    def __init__(self, message):
+        self.message = message
+
+class ParserError(Exception):
+    def __init__(self, message):
+        self.message = message
+        
+class InterpreterError (Exception):
+    def __init__(self, message):
+        self.message = message
+
+class ReturnValue:
+    def __init__(self, value):
+        self.value = value
+
+class Environment:
+    def __init__(self, parent=None):
+        self.parent = parent
+        self.variables = {}
+
+    def get(self, var_name):
+        if var_name in self.variables:
+            return self.variables[var_name]
+        elif self.parent:
+            return self.parent.get(var_name)
+        else:
+            raise InterpreterError(f"Undefined variable '{var_name}'")
+
+    def set(self, var_name, value):
+        self.variables[var_name] = value
+
+    def define(self, var_name, value):
+        if var_name in self.variables:
+            raise InterpreterError(f"Variable '{var_name}' is already defined")
+        else:
+            self.variables[var_name] = value
+
+    def copy(self):
+        return Environment(parent=self)
 
 class Interpreter:
     def __init__(self, lexer, parser):
@@ -197,3 +248,82 @@ class Interpreter:
             return value
         else:
             raise Exception(f'Invalid AST node: {node}')
+        
+    def evaluate_unary_operator(self, op: str, right: Union[ast.Number, ast.Variable]) -> Union[int, float]:
+        if op == "-":
+            return -self.evaluate_ast(right)
+        else:
+            raise Exception(f"Invalid unary operator '{op}'")
+        
+    def evaluate_number(self, node, env):
+        return ast.Number(node.value)
+    
+    def evaluate_string(self, string: str):
+        lexer = Lexer(string)
+        parser = Parser(lexer)
+        program = parser.parse()
+        return self.evaluate_ast(program)
+    
+    def evaluate_variable(self, node):
+        variable_name = node.value
+        if variable_name not in self.environment:
+            raise InterpreterError(f"Undefined variable '{variable_name}'")
+        return self.environment[variable_name]
+    
+    def evaluate_assignment(self, node):
+        var_name = node.token.value
+        var_value = self.evaluate_ast(node.right)
+        self.environment[var_name] = var_value
+        return ReturnValue(None)
+    
+    def evaluate_function(self, node: ast.FunctionCall, env: Dict[str, Any]) -> Any:
+        function_name = node.name
+        arguments = [self.evaluate(expr, env) for expr in node.arguments]
+
+        if function_name in self.functions:
+            return self.functions[function_name](*arguments)
+        else:
+            raise FunctionNotFoundError(f"Function '{function_name}' not found")
+        
+    def evaluate_if_statement(self, node: ast.IfStatement) -> Union[int, float, bool, str, None]:
+        condition_value = self.evaluate(node.condition)
+        if condition_value:
+            return self.evaluate(node.if_branch)
+        elif node.else_branch is not None:
+            return self.evaluate(node.else_branch)
+        else:
+            return None
+    
+    def evaluate_for_loop(self, node: ast.ForLoop) -> Union[None, ReturnValue]:
+        iterable = self.evaluate(node.iterable)
+        if not isinstance(iterable, Iterable):
+            raise InterpreterError(f"'{node.iterable}' is not iterable")
+        
+        # Create a new scope for the loop
+        self.environment.push_scope()
+        
+        try:
+            for item in iterable:
+                # Set the loop variable in the loop scope
+                self.environment.add_variable(node.loop_var, item)
+                
+                # Evaluate the body of the loop
+                result = self.evaluate(node.body)
+                
+                # Check for return statements in the loop body
+                if isinstance(result, ReturnValue):
+                    return result
+        finally:
+            # Pop the loop scope from the environment stack
+            self.environment.pop_scope()
+    
+    def evaluate_print_statement(self, node: ast.PrintStatement, env: Dict[str, Any]) -> None:
+        """Evaluate a print statement node."""
+        value = self.evaluate_ast(node.expression, env)
+        print(value)
+        
+    def evaluate_input_statement(self, node: ast.InputStatement) -> ReturnValue:
+        user_input = input(node.message)
+        if node.var_name is not None:
+            self.environment[node.var_name] = float(user_input)
+        return ReturnValue(None)

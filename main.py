@@ -1,18 +1,15 @@
 from lexer import Lexer
 from parser_1 import Parser
+from interpreter import Interpreter
 
-# Write a vintage BASIC program
-input_string = """
-10 PRINT "Hello, world!"
-20 END
-"""
+# Load the BASIC program from the file
+with open("example_program.bas") as f:
+    program = f.read()
 
-# Create a lexer and a parser
-lexer = Lexer(input_string)
+# Create instances of the lexer, parser, and interpreter
+lexer = Lexer(program)
 parser = Parser(lexer)
+interpreter = Interpreter()
 
-# Parse the program
-parsed_program = parser.parse()
-
-# Output the parsed program
-print(parsed_program)
+# Run the program
+interpreter.run(program)

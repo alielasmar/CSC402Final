@@ -18,13 +18,14 @@ evaluate_ast(node, env): Takes an abstract syntax tree node and an environment, 
 
 evaluate_binary_operator(operator_node, env): Takes a binary operator node and an environment, evaluates the left and right operands, and applies the operator.
 
-THESE TO GO:
 
 evaluate_unary_operator(operator_node, env): Takes a unary operator node and an environment, evaluates the operand, and applies the operator.
 
 evaluate_number(node): Takes a number node, converts it to a Python float, and returns the result.
 
 evaluate_string(node): Takes a string node, strips the quotes, and returns the result.
+
+THESE TO GO:
 
 evaluate_variable(node, env): Takes a variable node and an environment, looks up the value of the variable in the environment, and returns the result.
 
