@@ -56,7 +56,8 @@ class Environment:
         return Environment(parent=self)
 
 class Interpreter:
-    def __init__(self, lexer, parser):
+    def __init__(self, lexer, parser, program):
+        self.program = program
         self.lexer = lexer
         self.parser = parser
         self.symbols = {}
@@ -64,16 +65,34 @@ class Interpreter:
         self.current_token = None
         self.peek_token = None
         self.advance()  # set up the current_token and peek_token
-
+    ''' not working yet:'''
+    
+    def advance(self):
+        self.current_token = self.peek_token
+        self.peek_token = self.lexer.get_next_token()
+        
     def error(self, message):
         raise Exception(f"Error: {message}")
 
     def eat(self, token_type):
         if self.current_token.kind == token_type:
-            self.advance()
+            pass
+            #self.advance()
         else:
             self.error(f"Expected {token_type}, but got {self.current_token.kind}")
 
+    def execute(self, statement):
+        if isinstance(statement, my_ast.PrintStatement):
+            value = self.evaluate_ast(statement.expression)
+            print(value)
+        elif isinstance(statement, my_ast.Assignment):
+            var_name = statement.token.value
+            var_value = self.evaluate_ast(statement.right)
+            self.environment[var_name] = var_value
+        # add more elif clauses to handle other types of statements
+        else:
+            raise InterpreterError(f"Invalid statement: {statement}")
+        
     def factor(self):
         ...
         
@@ -156,13 +175,13 @@ class Interpreter:
             return
 
         # Execute each statement in the program
-        for statement in self.program.statements:
+        for statement in self.program:
             result = self.execute(statement)
             if isinstance(result, ReturnValue):
                 return result.value
             elif isinstance(result, Error):
                 return result.message
-    
+    '''
     def run_basic_program(self, input_string):
         # Create the lexer and parser
         lexer = Lexer(input_string)
@@ -175,6 +194,14 @@ class Interpreter:
         global_vars = {}
         local_vars = {}
         program.eval(global_vars, local_vars)
+        '''
+    def run_basic_program(self, program: str) -> None:
+        token_stream = self.lexer.lex(program)
+        ast = self.parser.parse(token_stream)
+
+        for statement in ast:
+            self.evaluate_statement(statement)
+        
         
     def print_token_stream(self):
         """
@@ -195,7 +222,32 @@ class Interpreter:
     def print_environment(self):
         for name, value in self.environment.items():
             print(name, "=", value)
-            
+    
+    def evaluate_statement(self, statement):
+        if isinstance(statement, my_ast.PrintStatement):
+            for expr in statement.expressions:
+                value = self.evaluate_expr(expr)
+                print(value)
+        elif isinstance(statement, my_ast.Assignment):
+            variable = statement.variable.name
+            value = self.evaluate_expr(statement.expression)
+            self.environment[variable] = value
+        elif isinstance(statement, my_ast.IfStatement):
+            condition = self.evaluate_expr(statement.condition)
+            if condition:
+                for stmt in statement.body:
+                    self.evaluate_statement(stmt)
+            elif statement.else_body:
+                for stmt in statement.else_body:
+                    self.evaluate_statement(stmt)
+        elif isinstance(statement, my_ast.WhileStatement):
+            condition = self.evaluate_expr(statement.condition)
+            while condition:
+                for stmt in statement.body:
+                    self.evaluate_statement(stmt)
+                condition = self.evaluate_expr(statement.condition)
+        else:
+            raise InterpreterError(f"Invalid statement: {statement}")
     
     def evaluate_ast(self, node):
         if isinstance(node, ast.Number):

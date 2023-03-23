@@ -1,81 +1,91 @@
 import re
 
 class Lexer:
-    # List of token types
-    TOKEN_TYPES = [        # integers
-        ('FLOAT_TYPE', r'float'),
-        ('STRING_TYPE', r'string'),
-        ('DATA', r'data'),
-        ('DEF',  r'def'),
-        ('FN',   r'fn'),
-        ('END',  r'end'),
-        ('FOR',  r'for'),
-        ('TO',   r'to'),
-        ('STEP', r'step'),
-        ('GOSUB', r'gosub'),
-        ('GOTO',  r'goto'),
-        ('IF',    r'if'),
-        ('THEN',  r'then'),
-        ('INPUT',  r'input'),
-        ('LET',   r'let'),
-        ('NEXT',  r'next'),
-        ('ON',    r'on'),
-        ('PRINT', r'print'),
-        ('RANDOMIZE', r'randomize'),
-        ('READ',      r'read'),
-        ('REM',       r'rem'),
-        ('RESTORE',   r'restore'),
-        ('RETURN',    r'return'),
-        ('STOP',      r'stop'),
-        ('NUMBER', r'([0-9]*[.])?[0-9]+'),  # for INTEGER and FLOAT see below
-        ('STRING', r'\"[^\"]*\"'),
-        ('ADD', r'\+'),             # plus sign
-        ('SUB', r'-'),             # minus sign
-        ('MUL', r'\*'),         # multiply sign
-        ('DIV', r'/'),            # divide sign
-        ('POW', r'\^'),
-        ('LEQ',   r'=<'),
-        ('EQ',    r'=='),
-        ('NEQ',   r'<>'),
-        ('LSS',   r'<'),
-        ('GRT',   r'>'),
-        ('GREQ',   r'=>'),
-        ('LPAREN', r'\('),           # left parenthesis
-        ('RPAREN', r'\)'),           # right parenthesis
-        ('ID', r'[A-Z][A-Z0-9]*'),   # identifier
-        ('FUNC', r'[A-Z]+\('),       # function
-        ('EOL', r';'),               # end of line
-        ('SPACE', r'\s+')            # whitespace
-    ]
-
-    def __init__(self, input_string):
-        # Create a regular expression to match all valid tokens
-        token_regex = '|'.join('(?P<%s>%s)' % pair for pair in self.TOKEN_TYPES)
-        self.line_num = 1
-        self.line_start = 0
-        self.tokens = []
-        for mo in re.finditer(token_regex, input_string):
-            kind = mo.lastgroup
-            value = mo.group()
-            if kind == 'EOL':
-                self.line_start = mo.end()
-                self.line_num += 1
-            elif kind == 'SPACE':
-                pass
-            else:
-                column = mo.start() - self.line_start
-                self.tokens.append(Token(kind, value, self.line_num, column))
+    def __init__(self, source_code):
+        self.source_code = source_code
+        self.pos = 0
+        self.current_char = self.source_code[self.pos]
     
-    def get_tokens(self):
-        return self.tokens
-
-# Token class
-class Token:
-    def __init__(self, kind, value, line_num, column):
-        self.kind = kind
-        self.value = value
-        self.line_num = line_num
-        self.column = column
+    def advance(self):
+        self.pos += 1
+        if self.pos > len(self.source_code) - 1:
+            self.current_char = None
+        else:
+            self.current_char = self.source_code[self.pos]
     
-    def __str__(self):
-        return 'Token(%s, %s, %d, %d)' % (self.kind, self.value, self.line_num, self.column)
+    def skip_whitespace(self):
+        while self.current_char is not None and self.current_char.isspace():
+            self.advance()
+    
+    def get_number(self):
+        result = ''
+        while self.current_char is not None and self.current_char.isdigit():
+            result += self.current_char
+            self.advance()
+        
+        if self.current_char == '.':
+            result += self.current_char
+            self.advance()
+            while self.current_char is not None and self.current_char.isdigit():
+                result += self.current_char
+                self.advance()
+            
+            return {'type': 'FLOAT', 'value': float(result)}
+        else:
+            return {'type': 'INTEGER', 'value': int(result)}
+    
+    def get_identifier(self):
+        result = ''
+        while self.current_char is not None and (self.current_char.isalnum() or self.current_char == '_'):
+            result += self.current_char
+            self.advance()
+        
+        return {'type': 'IDENTIFIER', 'value': result}
+    
+    def get_next_token(self):
+        while self.current_char is not None:
+            if self.current_char.isspace():
+                self.skip_whitespace()
+                continue
+            
+            if self.current_char.isdigit():
+                return self.get_number()
+            
+            if self.current_char.isalpha() or self.current_char == '_':
+                return self.get_identifier()
+            
+            if self.current_char == '+':
+                self.advance()
+                return {'type': 'PLUS', 'value': '+'}
+            
+            if self.current_char == '-':
+                self.advance()
+                return {'type': 'MINUS', 'value': '-'}
+            
+            if self.current_char == '*':
+                self.advance()
+                return {'type': 'MULTIPLY', 'value': '*'}
+            
+            if self.current_char == '/':
+                self.advance()
+                return {'type': 'DIVIDE', 'value': '/'}
+            
+            if self.current_char == '(':
+                self.advance()
+                return {'type': 'LPAREN', 'value': '('}
+            
+            if self.current_char == ')':
+                self.advance()
+                return {'type': 'RPAREN', 'value': ')'}
+            
+            if self.current_char == '=':
+                self.advance()
+                return {'type': 'EQUALS', 'value': '='}
+            
+            if self.current_char == ',':
+                self.advance()
+                return {'type': 'COMMA', 'value': ','}
+            
+            raise Exception(f"Invalid character: {self.current_char}")
+        
+        return {'type': 'EOF', 'value': None}

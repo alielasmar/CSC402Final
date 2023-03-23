@@ -9,7 +9,7 @@ with open("example_program.bas") as f:
 # Create instances of the lexer, parser, and interpreter
 lexer = Lexer(program)
 parser = Parser(lexer)
-interpreter = Interpreter(lexer,parser)
+interpreter = Interpreter(lexer,parser,program)
 
 # Run the program
-interpreter.run(program)
+interpreter.run()
